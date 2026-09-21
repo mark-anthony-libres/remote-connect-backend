@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Task Monitor Link</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      font-family: Arial, sans-serif;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 680px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: #0f766e;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .content {
+      padding: 20px;
+    }
+    .alert-box {
+      background: #f0fdfa;
+      border-left: 5px solid #14b8a6;
+      padding: 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .warning-box {
+      background: #fffbeb;
+      border-left: 5px solid #f59e0b;
+      padding: 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .table td, .table th {
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+      font-size: 13px;
+      text-align: left;
+      word-break: break-all;
+    }
+    .table .label {
+      background: #f1f5f9;
+      font-weight: bold;
+      width: 30%;
+    }
+    .monitor-button {
+      display: inline-block;
+      background: #0f766e;
+      color: #fff;
+      text-decoration: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin: 10px 0 20px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      padding: 15px;
+      border-top: 1px solid #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header">
+      <h1>Task Monitor Access Link</h1>
+    </div>
+
+    <div class="content">
+
+      <div class="alert-box">
+        A temporary link to the task pool monitor has been generated
+        {% if requestedBy %}by <b>{{ requestedBy }}</b>{% endif %}.
+      </div>
+
+      <a class="monitor-button" href="{{ webLink }}">Open Task Monitor</a>
+
+      <table class="table">
+        <tr>
+          <td class="label">Max Lifetime</td>
+          <td>{{ expiresInMinutes }} minute(s)</td>
+        </tr>
+        <tr>
+          <td class="label">Idle Timeout</td>
+          <td>Revoked after {{ idleTimeoutMinutes }} minute(s) with no requests</td>
+        </tr>
+        <tr>
+          <td class="label">Generated At</td>
+          <td>{{ generatedAt }}</td>
+        </tr>
+        <tr>
+          <td class="label">API Access</td>
+          <td style="font-family: monospace;">{{ curlCommand }}</td>
+        </tr>
+      </table>
+
+      <div class="warning-box">
+        This link is not tied to your login - anyone who has it can view task
+        monitoring data until it's revoked (idle timeout or max lifetime,
+        whichever comes first). Do not forward it outside the team.
+      </div>
+
+    </div>
+
+    <div class="footer">
+      Task Monitor Access - Centcom
+    </div>
+
+  </div>
+</body>
+</html>

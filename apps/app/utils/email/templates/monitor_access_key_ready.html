@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Monitor Access Key</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      font-family: Arial, sans-serif;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 680px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: #0f766e;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .content {
+      padding: 20px;
+    }
+    .alert-box {
+      background: #f0fdfa;
+      border-left: 5px solid #14b8a6;
+      padding: 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .key-box {
+      background: #0f172a;
+      color: #5eead4;
+      font-family: "Courier New", monospace;
+      font-size: 28px;
+      font-weight: bold;
+      letter-spacing: 2px;
+      text-align: center;
+      padding: 20px;
+      border-radius: 8px;
+      margin: 10px 0 20px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .table td, .table th {
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+      font-size: 13px;
+      text-align: left;
+    }
+    .table .label {
+      background: #f1f5f9;
+      font-weight: bold;
+      width: 40%;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      padding: 15px;
+      border-top: 1px solid #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header">
+      <h1>Monitor Access Key</h1>
+    </div>
+
+    <div class="content">
+
+      <div class="alert-box">
+        Someone requested access to the Task Monitor without a valid access key. Use the key below in the
+        <code>X-Access-Key</code> header on requests to the monitor API.
+      </div>
+
+      <div class="key-box">{{ accessKey }}</div>
+
+      <table class="table">
+        <tr>
+          <td class="label">Header</td>
+          <td>X-Access-Key: {{ accessKey }}</td>
+        </tr>
+        <tr>
+          <td class="label">Expires In</td>
+          <td>{{ expiresInHours }} hour(s)</td>
+        </tr>
+      </table>
+
+      <div class="alert-box">
+        If you did not request this, no action is needed - the requesting IP is rate-limited and will be
+        temporarily blocked after repeated attempts without a valid key.
+      </div>
+
+    </div>
+
+    <div class="footer">
+      Task Monitor Access - Centcom
+    </div>
+
+  </div>
+</body>
+</html>

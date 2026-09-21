@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Sync Health Warning</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      font-family: Arial, sans-serif;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 680px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: #b45309;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .content {
+      padding: 20px;
+    }
+    .alert-box {
+      background: #fff7ed;
+      border-left: 5px solid #f97316;
+      padding: 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .repeat-box {
+      background: #fef2f2;
+      border-left: 5px solid #dc2626;
+      padding: 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #7f1d1d;
+      font-weight: 600;
+    }
+    .error-box {
+      background: #fef2f2;
+      border-left: 5px solid #b91c1c;
+      padding: 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+      color: #7f1d1d;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .table td {
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+      font-size: 14px;
+    }
+    .label {
+      background: #f1f5f9;
+      font-weight: bold;
+      width: 40%;
+    }
+    .danger {
+      color: #b91c1c;
+      font-weight: bold;
+    }
+    .ok {
+      color: #15803d;
+      font-weight: bold;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      padding: 15px;
+      border-top: 1px solid #e5e7eb;
+    }
+    pre {
+      background: #0f172a;
+      color: #e2e8f0;
+      padding: 12px;
+      border-radius: 6px;
+      font-size: 12px;
+      overflow-x: auto;
+      line-height: 1.5;
+      white-space: pre-wrap;
+      word-break: break-word;
+    }
+    code {
+      font-family: Consolas, Monaco, monospace;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header">
+      <h1>WARNING: Sync Health Issue Detected</h1>
+    </div>
+
+    <div class="content">
+
+      <div class="alert-box">
+        {% if _timeSinceActive > thresholdSeconds %}
+          The sync process has not shown any activity for 
+          <b>{{ _timeSinceActive }}</b> seconds, which exceeds the configured threshold of 
+          <b>{{ thresholdSeconds }}</b> seconds.<br><br>
+        {% else %}
+          The sync process has been running continuously for 
+          <b>{{ _timeSinceSync }}</b> seconds, exceeding the expected threshold of 
+          <b>{{ thresholdSeconds }}</b> seconds.<br><br>
+        {% endif %}
+      </div>
+
+      <div class="repeat-box">
+        This issue has not been resolved.<br>
+        This alert will continue to be sent every few hours until the issue is fixed.
+      </div>
+
+      <table class="table">
+        <tr>
+          <td class="label">Last Sync Time</td>
+          <td>{{ lastSyncTime }}</td>
+        </tr>
+        <tr>
+          <td class="label">Last Activity Time</td>
+          <td>{{ lastActivityTime }}</td>
+        </tr>
+        <tr>
+          <td class="label">Expected Next Sync</td>
+          <td>{{ expectedNextSyncTime }}</td>
+        </tr>
+        <tr>
+          <td class="label">Delay</td>
+          <td>{{ delayDuration }}</td>
+        </tr>
+        <tr>
+          <td class="label">Celery Pending Tasks</td>
+          <td class="{% if pendingTaskCount > 20 %}danger{% endif %}">
+            {{ pendingTaskCount }}
+            {% if pendingTaskCount > 20 %}
+              (HIGH)
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="label">Last error</td>
+          <td class="{% if _syncError %}danger{% endif %}">
+            {% if _syncError %}
+              <pre><code>{{ _syncError | default("No error") }}</code></pre>
+            {% endif %}
+          </td>
+        </tr>
+      </table>
+
+      <table class="table">
+        <tr>
+          <td class="label">Celery Status</td>
+          <td class="{% if not celeryStatus.is_alive %}danger{% else %}ok{% endif %}">
+            {% if not celeryStatus.is_alive %}
+              DOWN
+            {% elif celeryStatus.active_task_count == 0 and pendingTaskCount > 0 %}
+              STUCK (not processing tasks)
+            {% else %}
+              RUNNING
+            {% endif %}
+          </td>
+        </tr>
+        <tr>
+          <td class="label">Active Tasks</td>
+          <td>{{ celeryStatus.active_task_count }}</td>
+        </tr>
+        <tr>
+          <td class="label">Reserved Tasks</td>
+          <td>{{ celeryStatus.reserved_task_count }}</td>
+        </tr>
+      </table>
+
+      <div class="alert-box">
+        <b>Action Required:</b><br><br>
+
+        1. Verify Redis is operational:
+        <pre>
+redis-cli ping
+redis-cli info memory
+redis-cli info clients
+        </pre>
+
+        2. Ensure Celery workers are running and consuming tasks.<br><br>
+
+        3. If the queue backlog continues to grow, purge stuck tasks carefully:
+        <pre>
+celery -A apps.app.celery_app worker status
+celery -A apps.app.celery_app inspect active
+celery -A apps.app.celery_app purge -f
+        </pre>
+
+        Use caution when purging to avoid sudden spikes in external API requests.
+      </div>
+
+    </div>
+
+    <div class="footer">
+      Automated Sync Health Checker - Centcom<br>
+      Generated on {{ generatedAt }}
+    </div>
+
+  </div>
+</body>
+</html>`

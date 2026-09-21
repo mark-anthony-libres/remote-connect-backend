@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>Archived Log File(s) Ready</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      font-family: Arial, sans-serif;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 680px;
+      margin: 20px auto;
+      background: #ffffff;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .header {
+      background: #0f766e;
+      color: #fff;
+      padding: 20px;
+      text-align: center;
+    }
+    .content {
+      padding: 20px;
+    }
+    .alert-box {
+      background: #f0fdfa;
+      border-left: 5px solid #14b8a6;
+      padding: 14px;
+      margin-bottom: 20px;
+      font-size: 14px;
+    }
+    .table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 20px;
+    }
+    .table td, .table th {
+      border: 1px solid #e5e7eb;
+      padding: 10px;
+      font-size: 13px;
+      text-align: left;
+    }
+    .table .label {
+      background: #f1f5f9;
+      font-weight: bold;
+      width: 40%;
+    }
+    .download-button {
+      display: inline-block;
+      background: #0f766e;
+      color: #fff;
+      text-decoration: none;
+      padding: 12px 20px;
+      border-radius: 8px;
+      font-weight: bold;
+      margin: 10px 0 20px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 12px;
+      color: #64748b;
+      padding: 15px;
+      border-top: 1px solid #e5e7eb;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+
+    <div class="header">
+      <h1>Archived Log File(s) Ready</h1>
+    </div>
+
+    <div class="content">
+
+      <div class="alert-box">
+        Requested by <b>{{ requestedBy }}</b>. The selected log file{{ 's' if fileCount != 1 else '' }}
+        {{ 'have' if fileCount != 1 else 'has' }} been zipped, password-protected, and uploaded to S3 - use the
+        link below to download. The password was shown to the requester directly and is not included in this
+        email.
+      </div>
+
+      <a class="download-button" href="{{ downloadUrl }}">Download</a>
+
+      <table class="table">
+        <tr>
+          <td class="label">File Count</td>
+          <td>{{ fileCount }}</td>
+        </tr>
+        <tr>
+          <td class="label">Zip Size</td>
+          <td>{{ zipSizeMb }} MB</td>
+        </tr>
+        <tr>
+          <td class="label">Link Expires In</td>
+          <td>{{ expiresInMinutes }} minute(s)</td>
+        </tr>
+        <tr>
+          <td class="label">Generated At</td>
+          <td>{{ generatedAt }}</td>
+        </tr>
+      </table>
+
+      <div class="alert-box">
+        This link can be opened multiple times until it expires.
+      </div>
+
+    </div>
+
+    <div class="footer">
+      Archived Log Download - Centcom
+    </div>
+
+  </div>
+</body>
+</html>

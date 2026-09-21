@@ -1,0 +1,187 @@
+version: "3.9"
+
+services:
+  migrate:
+    build: .
+    command: python -m run.migration upgrade head
+    env_file:
+      - .env
+    environment:
+      PG_DB_HOST: db
+      PG_DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      PG_DUMP_PATH: /usr/bin/pg_dump
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: "no"
+    profiles:
+      - migrate
+
+  api:
+    build: .
+    container_name: remote-desktop-backend
+    command: >
+      gunicorn apps.app.main:app
+      -k uvicorn.workers.UvicornWorker
+      -w 10
+      -b 0.0.0.0:8000
+    env_file:
+      - .env
+    environment:
+      PG_DB_HOST: db
+      PG_DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    ports:
+      - "8000:8000"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    volumes:
+      - logsdata:/app/logs
+
+  impersonation-worker:
+    build: .
+    container_name: remote-desktop-backend-impersonation-worker
+    command: >
+      gunicorn apps.app.main:app
+      -k uvicorn.workers.UvicornWorker
+      -w 1
+      -b 0.0.0.0:8010
+    env_file:
+      - .env
+    environment:
+      PG_DB_HOST: db
+      PG_DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      IMPERSONATION_WORKER: "1"
+    ports:
+      - "8010:8010"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+
+  worker:
+    build: .
+    container_name: remote-desktop-backend-worker
+    command: >
+      celery -A apps.app.celery_app worker
+      -l info
+      --concurrency=10
+      --max-tasks-per-child=100
+      --prefetch-multiplier=1
+    env_file:
+      - .env
+    environment:
+      PG_DB_HOST: db
+      PG_DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    healthcheck:
+      test: ["CMD", "celery", "-A", "apps.app.celery_app", "inspect", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    volumes:
+      - logsdata:/app/logs
+
+  beat:
+    build: .
+    container_name: remote-desktop-backend-beat
+    command: >
+      celery -A apps.app.celery_app beat
+      -l info
+      --schedule /app/beat-data/celerybeat-schedule
+    env_file:
+      - .env
+    environment:
+      PG_DB_HOST: db
+      PG_DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    volumes:
+      - beatdata:/app/beat-data
+      - logsdata:/app/logs
+
+  monitor:
+    build: .
+    container_name: remote-desktop-backend-monitor
+    command: >
+      gunicorn apps.monitor.main:app
+      -k uvicorn.workers.UvicornWorker
+      -w 1
+      -b 0.0.0.0:8001
+    env_file:
+      - .env
+    environment:
+      PG_DB_HOST: db
+      PG_DB_PORT: "5432"
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
+      FORWARDED_ALLOW_IPS: ""
+    ports:
+      - "8001:8001"
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: always
+    volumes:
+      - logsdata:/app/logs
+
+  redis:
+    image: redis:7-alpine
+    container_name: remote-desktop-backend-redis
+    restart: always
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  db:
+    image: postgres:16-alpine
+    container_name: remote-desktop-backend-db
+    environment:
+      POSTGRES_DB: ${PG_DB_NAME}
+      POSTGRES_USER: ${PG_DB_USER}
+      POSTGRES_PASSWORD: ${PG_DB_PASSWORD}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    restart: always
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${PG_DB_USER}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  pgdata:
+  beatdata:
+  logsdata:

@@ -1,0 +1,6 @@
+[tool.taskipy.tasks]
+setup = "setup_venv.bat"
+activate = ".venv\\Scripts\\activate"
+install = "pip install -r requirements.txt"
+start = "python run/scripts/start.py"
+migration_create = "python -m run migration create"

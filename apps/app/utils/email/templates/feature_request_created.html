@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="UTF-8">
+  <title>New Feature Request</title>
+  <style>
+    body {
+      margin: 0;
+      padding: 0;
+      background: #eef2f7;
+      font-family: Arial, sans-serif;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 680px;
+      margin: 20px auto;
+      background: #ffffff;
+      overflow: hidden;
+      box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+    }
+    .content {
+      padding: 20px;
+    }
+    .request-summary {
+      margin-top: 20px;
+      margin-bottom: 40px;
+    }
+    .priority-High {
+      background-color: #ff8989;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .priority-Medium {
+      background-color: #ffb896;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+    .priority-Low {
+      background-color: #b9d4ff;
+      padding: 4px 8px;
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="content">
+      <p>Hi {{ recipient_name }},</p>
+      <p style="margin-bottom: 20px;">A new Customer Feature Request has been submitted through CentCom.</p>
+      <p>The request has been successfully recorded in the Feature Request Management module and is now available for visibility and any applicable follow-up actions.</p>
+      
+      <h4 style="margin-top: 20px; color: #1d4ed8;">Request Summary</h4>
+      <div class="request-summary">
+        <p><b>Request ID:</b> {{ request_id }}</p>
+        <p><b>Submitted By:</b> {{ request_email }}</p>
+        <p><b>Date Submitted:</b> {{ request_date_submitted }}</p>
+        <p><b>Priority:</b> <span class="priority-{{ request_priority }}">{{ request_priority }}</span></p>
+        <p><b>Current Status:</b> {{ request_status }}</p>
+        <p><b>Feature Title:</b><br/>{{ request_title }}</p>
+        <p><b>Description:</b><br/>{{ request_description }}</p>
+        <p><b>Business Impact:</b><br/>{{ request_business_impact }}</p>
+      </div>
+      
+      <p>Thank you,</p>
+      <p>
+        <b>CentCom Request Dispatcher</b><br>
+      <span style="font-size: 12px; color: #64748b;">Automated Notification - Please do not reply to this email</span></p>
+    
+    </div>
+  </div>
+</body>
+</html>

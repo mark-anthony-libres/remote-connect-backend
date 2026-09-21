@@ -1,0 +1,554 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8" />
+<title>Migration Graph &mdash; {{ project_name }}</title>
+<style>
+  :root {
+    --ink: #1a1d23;
+    --ink-dim: #5b6472;
+    --ink-faint: #8b93a1;
+    --bg: #f6f7f9;
+    --surface: #ffffff;
+    --border: #e3e6ea;
+    --border-strong: #cfd4db;
+    --accent: #2563eb;
+    --accent-dim: #eef2ff;
+    --mono: "Cascadia Code", "SF Mono", Consolas, monospace;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    font-family: -apple-system, "Segoe UI", system-ui, sans-serif;
+    margin: 0;
+    padding: 2rem;
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.5;
+  }
+
+  .page-header {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.9rem 1.5rem;
+    margin-bottom: 0.75rem;
+  }
+  .title-row { display: flex; align-items: baseline; gap: 0.65rem; flex-wrap: wrap; }
+  h1 { font-size: 1.2rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; text-wrap: balance; }
+  .project-name {
+    font-family: var(--mono);
+    font-size: 0.8rem;
+    color: var(--accent);
+    background: var(--accent-dim);
+    padding: 0.1rem 0.5rem;
+    border-radius: 4px;
+  }
+
+  .info-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 0.4rem 0.6rem;
+    margin-top: 0.55rem;
+    font-size: 0.78rem;
+    color: var(--ink-faint);
+  }
+  .stat-chip {
+    display: inline-flex;
+    align-items: baseline;
+    gap: 0.35rem;
+    color: var(--ink-dim);
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 999px;
+    padding: 0.2rem 0.65rem;
+  }
+  .stat-chip b {
+    font-family: var(--mono);
+    font-variant-numeric: tabular-nums;
+    color: var(--ink);
+    font-weight: 600;
+    font-size: 0.85rem;
+  }
+  .info-row .dot { color: var(--border-strong); }
+  .db-status { font-family: var(--mono); }
+
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0.45rem 0.6rem;
+    margin-bottom: 0.75rem;
+  }
+  .toolbar button {
+    padding: 0.4rem 0.85rem;
+    font-size: 0.83rem;
+    font-weight: 500;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s ease, border-color 0.12s ease;
+  }
+  .toolbar button:hover { background: var(--bg); border-color: var(--border-strong); }
+  .toolbar button.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .toolbar .sep { width: 1px; align-self: stretch; background: var(--border); margin: 0.15rem 0.25rem; }
+  .toolbar .hint { font-size: 0.78rem; color: var(--ink-faint); margin-left: 0.15rem; }
+
+  .diagram-viewport {
+    position: relative;
+    height: 75vh;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+    background: var(--surface);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04);
+  }
+  .diagram-viewport.selecting { cursor: crosshair; }
+
+  .selection-box {
+    position: absolute;
+    border: 1.5px dashed var(--accent);
+    background: rgba(37, 99, 235, 0.1);
+    pointer-events: none;
+  }
+
+  .mermaid { margin: 0; }
+
+  .minimap {
+    position: absolute;
+    top: 0;
+    right: 0;
+    border-left: 1px solid var(--border);
+    background: var(--bg);
+    cursor: grab;
+    overflow: hidden;
+    transition: background 0.12s ease;
+  }
+  .minimap:hover { background: #eef0f3; }
+  .minimap.dragging { cursor: grabbing; }
+  .minimap img { display: block; width: 100%; height: 100%; }
+  .minimap-highlight {
+    position: absolute;
+    border: 1.5px solid var(--accent);
+    border-radius: 2px;
+    background: rgba(37, 99, 235, 0.15);
+    box-shadow: 0 1px 4px rgba(37, 99, 235, 0.25);
+    pointer-events: none;
+    transition: left 0.15s ease, top 0.15s ease, width 0.15s ease, height 0.15s ease;
+  }
+  .minimap-highlight.tracking { transition: none; }
+
+  .preview-panel {
+    position: fixed;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    width: min(420px, 100vw);
+    background: var(--surface);
+    border-left: 1px solid var(--border);
+    box-shadow: -12px 0 32px rgba(16, 24, 40, 0.12);
+    z-index: 1000;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(100%);
+    transition: transform 0.18s ease-out;
+  }
+  .preview-panel.open { transform: translateX(0); }
+  .preview-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.9rem 1.1rem;
+    border-bottom: 1px solid var(--border);
+  }
+  .preview-panel-header h2 { margin: 0; font-size: 0.92rem; font-weight: 600; }
+  .preview-panel-header button {
+    border: none;
+    background: none;
+    font-size: 1.2rem;
+    line-height: 1;
+    cursor: pointer;
+    color: var(--ink-faint);
+    padding: 0.25rem;
+    border-radius: 4px;
+  }
+  .preview-panel-header button:hover { color: var(--ink); background: var(--bg); }
+  .preview-body {
+    flex: 1;
+    margin: 1rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    overflow: auto;
+    background:
+      linear-gradient(45deg, #eef0f3 25%, transparent 25%),
+      linear-gradient(-45deg, #eef0f3 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #eef0f3 75%),
+      linear-gradient(-45deg, transparent 75%, #eef0f3 75%);
+    background-size: 16px 16px;
+    background-position: 0 0, 0 8px, 8px -8px, -8px 0px;
+  }
+  .preview-body img { display: block; max-width: 100%; }
+  .preview-actions { display: flex; gap: 0.5rem; padding: 0 1rem 1rem; }
+  .preview-actions button {
+    flex: 1;
+    padding: 0.55rem 0.75rem;
+    font-size: 0.83rem;
+    font-weight: 500;
+    font-family: inherit;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: background 0.12s ease;
+  }
+  .preview-actions button:hover { background: var(--bg); }
+  .preview-actions button.primary { background: var(--accent); color: #fff; border-color: var(--accent); }
+  .preview-actions button.primary:hover { background: #1d4ed8; }
+  .preview-status { font-size: 0.78rem; color: var(--ink-dim); min-height: 1.2em; padding: 0 1.1rem 0.75rem; }
+</style>
+</head>
+<body>
+<header class="page-header">
+  <div class="title-row">
+    <h1>Migration Graph</h1>
+    <span class="project-name">{{ project_name }}</span>
+  </div>
+  <div class="info-row">
+    <span class="stat-chip"><b>{{ revision_count }}</b> revisions</span>
+    <span class="stat-chip"><b>{{ branch_point_count }}</b> branch point(s)</span>
+    <span class="stat-chip"><b>{{ merge_point_count }}</b> merge point(s)</span>
+    <span class="stat-chip"><b>{{ head_count }}</b> head(s)</span>
+    <span class="dot">&middot;</span>
+    <span class="db-status">{{ db_status }}</span>
+    <span class="dot">&middot;</span>
+    <span>generated {{ generated_at }}</span>
+  </div>
+</header>
+
+<div class="toolbar">
+  <button onclick="zoomIn()">+ Zoom in</button>
+  <button onclick="zoomOut()">&minus; Zoom out</button>
+  <button onclick="zoomReset()">Reset</button>
+  <span class="sep"></span>
+  <button id="select-btn" onclick="toggleSelectMode()">Select region to save</button>
+  <span class="hint" id="select-hint"></span>
+</div>
+
+<div id="diagram-viewport" class="diagram-viewport">
+  <div class="mermaid">
+{{ mermaid_text }}
+  </div>
+  <div id="minimap" class="minimap">
+    <img id="minimap-image" alt="Full diagram overview" />
+    <div id="minimap-highlight" class="minimap-highlight"></div>
+  </div>
+</div>
+
+<div id="capture-panel" class="preview-panel">
+  <div class="preview-panel-header">
+    <h2>Selected region</h2>
+    <button onclick="closePreviewPanel()" aria-label="Close">&times;</button>
+  </div>
+  <div class="preview-body">
+    <img id="capture-preview" alt="Captured region preview" />
+  </div>
+  <div class="preview-status" id="capture-status"></div>
+  <div class="preview-actions">
+    <button onclick="copyCaptureToClipboard()">Copy to clipboard</button>
+    <button class="primary" onclick="saveCaptureAsFile()">Save as PNG</button>
+  </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/html-to-image@1.11.11/dist/html-to-image.js"></script>
+<script type="module">
+  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+  mermaid.initialize({ startOnLoad: false });
+
+  const viewport = document.getElementById("diagram-viewport");
+  const selectBtn = document.getElementById("select-btn");
+  const selectHint = document.getElementById("select-hint");
+
+  let panZoom = null;
+  let svgEl = null;
+  let baseRealZoom = null;
+  let selecting = false;
+  let selectionStart = null;
+  let selectionBox = null;
+
+  const minimap = document.getElementById("minimap");
+  const minimapImage = document.getElementById("minimap-image");
+  const minimapHighlight = document.getElementById("minimap-highlight");
+  let minimapScale = 1;
+  let naturalViewBox = null;
+
+  async function init() {
+    await mermaid.run({ querySelector: ".mermaid" });
+    svgEl = viewport.querySelector("svg");
+    naturalViewBox = svgEl.viewBox.baseVal;
+    const nvb = { x: naturalViewBox.x, y: naturalViewBox.y, width: naturalViewBox.width, height: naturalViewBox.height };
+
+    await buildMinimap(nvb);
+
+    const containerBox = viewport.getBoundingClientRect();
+    svgEl.style.maxWidth = "none";
+    svgEl.style.width = containerBox.width + "px";
+    svgEl.style.height = containerBox.height + "px";
+    svgEl.removeAttribute("width");
+    svgEl.removeAttribute("height");
+
+    panZoom = window.svgPanZoom(svgEl, {
+      zoomEnabled: true,
+      controlIconsEnabled: false,
+      fit: false,
+      center: false,
+      minZoom: 0.05,
+      maxZoom: 15,
+      onZoom: updateMinimapHighlight,
+      onPan: updateMinimapHighlight,
+    });
+    baseRealZoom = panZoom.getSizes().realZoom;
+
+    svgEl.addEventListener("mousedown", () => minimapHighlight.classList.add("tracking"));
+    window.addEventListener("mouseup", () => minimapHighlight.classList.remove("tracking"));
+
+    fitToWidth();
+    updateMinimapHighlight();
+    window.addEventListener("resize", () => {
+      const box = viewport.getBoundingClientRect();
+      svgEl.style.width = box.width + "px";
+      svgEl.style.height = box.height + "px";
+      panZoom.resize();
+      fitToWidth();
+      sizeMinimap(naturalViewBox);
+      updateMinimapHighlight();
+    });
+  }
+
+  const MAX_MINIMAP_WIDTH = 90;
+
+  async function buildMinimap(nvb) {
+    const dataUrl = await window.htmlToImage.toPng(svgEl, {
+      width: nvb.width,
+      height: nvb.height,
+      pixelRatio: 1,
+    });
+    minimapImage.src = dataUrl;
+    sizeMinimap(nvb);
+  }
+
+  function sizeMinimap(nvb) {
+    const availableHeight = viewport.clientHeight;
+    let mmWidth = availableHeight * (nvb.width / nvb.height);
+    let mmHeight = availableHeight;
+    if (mmWidth > MAX_MINIMAP_WIDTH) {
+      mmWidth = MAX_MINIMAP_WIDTH;
+      mmHeight = mmWidth * (nvb.height / nvb.width);
+    }
+    minimap.style.width = mmWidth + "px";
+    minimap.style.height = mmHeight + "px";
+    minimapScale = mmWidth / nvb.width;
+  }
+
+  function updateMinimapHighlight() {
+    if (!panZoom || !naturalViewBox) return;
+    const sizes = panZoom.getSizes();
+    const pan = panZoom.getPan();
+    const scale = sizes.realZoom;
+
+    const contentLeft = -pan.x / scale;
+    const contentTop = -pan.y / scale;
+    const contentWidth = sizes.width / scale;
+    const contentHeight = sizes.height / scale;
+
+    const mmWidth = minimap.clientWidth;
+    const mmHeight = minimap.clientHeight;
+    const left = Math.max(0, contentLeft * minimapScale);
+    const top = Math.max(0, contentTop * minimapScale);
+    const right = Math.min(mmWidth, (contentLeft + contentWidth) * minimapScale);
+    const bottom = Math.min(mmHeight, (contentTop + contentHeight) * minimapScale);
+
+    Object.assign(minimapHighlight.style, {
+      left: left + "px",
+      top: top + "px",
+      width: Math.max(0, right - left) + "px",
+      height: Math.max(0, bottom - top) + "px",
+    });
+  }
+
+  function navigateMinimapTo(clientX, clientY) {
+    const rect = minimap.getBoundingClientRect();
+    const targetContentX = (clientX - rect.left) / minimapScale;
+    const targetContentY = (clientY - rect.top) / minimapScale;
+    const sizes = panZoom.getSizes();
+    const scale = sizes.realZoom;
+    panZoom.pan({
+      x: -(targetContentX * scale) + sizes.width / 2,
+      y: -(targetContentY * scale) + sizes.height / 2,
+    });
+  }
+
+  let minimapDragging = false;
+  minimap.addEventListener("mousedown", (e) => {
+    e.stopPropagation();
+    minimapDragging = true;
+    minimap.classList.add("dragging");
+    minimapHighlight.classList.add("tracking");
+    navigateMinimapTo(e.clientX, e.clientY);
+  });
+  window.addEventListener("mousemove", (e) => {
+    if (minimapDragging) navigateMinimapTo(e.clientX, e.clientY);
+  });
+  window.addEventListener("mouseup", () => {
+    minimapDragging = false;
+    minimap.classList.remove("dragging");
+    minimapHighlight.classList.remove("tracking");
+  });
+
+  function fitToWidth() {
+    const sizes = panZoom.getSizes();
+    const trueScale = Math.min(sizes.width / sizes.viewBox.width, 1.2);
+    panZoom.zoom(trueScale / baseRealZoom);
+    const panX = (sizes.width - sizes.viewBox.width * trueScale) / 2 - sizes.viewBox.x * trueScale;
+    const panY = 20 - sizes.viewBox.y * trueScale;
+    panZoom.pan({ x: panX, y: panY });
+  }
+
+  window.zoomIn = () => panZoom && panZoom.zoomIn();
+  window.zoomOut = () => panZoom && panZoom.zoomOut();
+  window.zoomReset = () => panZoom && fitToWidth();
+
+  window.toggleSelectMode = () => {
+    selecting = !selecting;
+    viewport.classList.toggle("selecting", selecting);
+    selectBtn.classList.toggle("active", selecting);
+    selectBtn.textContent = selecting ? "Cancel selection" : "Select region to save";
+    selectHint.textContent = selecting ? "Drag a rectangle over the diagram" : "";
+    if (panZoom) {
+      if (selecting) panZoom.disablePan();
+      else panZoom.enablePan();
+    }
+  };
+
+  viewport.addEventListener("mousedown", (e) => {
+    if (!selecting) return;
+    const rect = viewport.getBoundingClientRect();
+    selectionStart = { x: e.clientX - rect.left, y: e.clientY - rect.top };
+    selectionBox = document.createElement("div");
+    selectionBox.className = "selection-box";
+    viewport.appendChild(selectionBox);
+  });
+
+  viewport.addEventListener("mousemove", (e) => {
+    if (!selecting || !selectionStart || !selectionBox) return;
+    const rect = viewport.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+    const left = Math.min(x, selectionStart.x);
+    const top = Math.min(y, selectionStart.y);
+    Object.assign(selectionBox.style, {
+      left: left + "px",
+      top: top + "px",
+      width: Math.abs(x - selectionStart.x) + "px",
+      height: Math.abs(y - selectionStart.y) + "px",
+    });
+  });
+
+  viewport.addEventListener("mouseup", async () => {
+    if (!selecting || !selectionStart || !selectionBox) return;
+    const boxRect = selectionBox.getBoundingClientRect();
+    selectionBox.remove();
+    selectionBox = null;
+    selectionStart = null;
+
+    if (boxRect.width > 5 && boxRect.height > 5) {
+      await captureSelection(boxRect);
+    }
+    window.toggleSelectMode();
+  });
+
+  async function captureSelection(boxRect) {
+    const pixelRatio = 4;
+    const viewportBox = viewport.getBoundingClientRect();
+
+    const fullCanvas = await window.htmlToImage.toCanvas(viewport, {
+      pixelRatio,
+      width: viewportBox.width,
+      height: viewportBox.height,
+    });
+
+    const cropX = (boxRect.left - viewportBox.left) * pixelRatio;
+    const cropY = (boxRect.top - viewportBox.top) * pixelRatio;
+    const cropW = boxRect.width * pixelRatio;
+    const cropH = boxRect.height * pixelRatio;
+
+    const cropCanvas = document.createElement("canvas");
+    cropCanvas.width = cropW;
+    cropCanvas.height = cropH;
+    const ctx = cropCanvas.getContext("2d");
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, cropW, cropH);
+    ctx.drawImage(fullCanvas, cropX, cropY, cropW, cropH, 0, 0, cropW, cropH);
+
+    cropCanvas.toBlob((blob) => openPreviewPanel(blob), "image/png");
+  }
+
+  const capturePanel = document.getElementById("capture-panel");
+  const capturePreview = document.getElementById("capture-preview");
+  const captureStatus = document.getElementById("capture-status");
+  let currentCaptureBlob = null;
+  let currentCaptureUrl = null;
+
+  function openPreviewPanel(blob) {
+    currentCaptureBlob = blob;
+    currentCaptureUrl = URL.createObjectURL(blob);
+    capturePreview.src = currentCaptureUrl;
+    captureStatus.textContent = "";
+    capturePanel.classList.add("open");
+  }
+
+  window.closePreviewPanel = () => {
+    capturePanel.classList.remove("open");
+    if (currentCaptureUrl) URL.revokeObjectURL(currentCaptureUrl);
+    currentCaptureUrl = null;
+    currentCaptureBlob = null;
+  };
+
+  window.copyCaptureToClipboard = async () => {
+    if (!currentCaptureBlob) return;
+    try {
+      await navigator.clipboard.write([
+        new ClipboardItem({ [currentCaptureBlob.type]: currentCaptureBlob }),
+      ]);
+      captureStatus.textContent = "Copied to clipboard.";
+    } catch (err) {
+      captureStatus.textContent = "Couldn't copy to clipboard (" + err.message + "). Try Save instead.";
+    }
+  };
+
+  window.saveCaptureAsFile = () => {
+    if (!currentCaptureBlob) return;
+    const dlUrl = URL.createObjectURL(currentCaptureBlob);
+    const a = document.createElement("a");
+    a.href = dlUrl;
+    a.download = "migration-graph-selection.png";
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(dlUrl);
+    captureStatus.textContent = "Saved.";
+  };
+
+  init();
+</script>
+</body>
+</html>
